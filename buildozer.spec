@@ -9,7 +9,8 @@ source.exclude_patterns = cli.py
 version = 1.0
 
 # tls_client (native Go lib) cannot run on Android -> core falls back to requests
-requirements = python3,kivy==2.3.0,requests,urllib3,chardet,idna,certifi,charset-normalizer,openssl
+requirements = hostpython3==3.11.5,python3==3.11.5,kivy==2.3.0,requests,urllib3,chardet,idna,certifi,charset-normalizer,openssl
+p4a.branch = v2024.01.21
 
 orientation = portrait
 fullscreen = 0
