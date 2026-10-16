@@ -2,6 +2,7 @@
 import json
 import os
 import threading
+import traceback
 
 from kivy.app import App
 from kivy.clock import Clock
@@ -10,10 +11,19 @@ from kivy.lang import Builder
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.image import Image
+from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 from kivy.uix.textinput import TextInput
 
-from zefoy_core import Zefoy, DEFAULT_CONFIG, DEFAULT_SERVICES
+try:
+    from zefoy_core import Zefoy, DEFAULT_CONFIG, DEFAULT_SERVICES
+    IMPORT_ERROR = None
+except Exception:
+    IMPORT_ERROR = traceback.format_exc()
+    Zefoy = None
+    DEFAULT_CONFIG = {'url': '', 'service': 'Views', 'comment_id': None,
+                      'proxy': None, 'captcha_auto_solve': True}
+    DEFAULT_SERVICES = ['Views']
 
 Window.softinput_mode = 'below_target'
 
@@ -87,13 +97,13 @@ BoxLayout:
             id: start
             text: 'START'
             background_color: .2, .7, .3, 1
-            on_release: app.start()
+            on_release: app.start_bot()
         Button:
             id: stop
             text: 'STOP'
             disabled: True
             background_color: .85, .25, .25, 1
-            on_release: app.stop()
+            on_release: app.stop_bot()
 
     Label:
         id: stats
@@ -122,16 +132,32 @@ class ZefoyApp(App):
     title = 'Zefoy Bot'
 
     def build(self):
-        self.root_widget = Builder.load_string(KV)
         self.bot = None
         self.worker = None
         self.running = False
         self.lines = []
-        self.cfg_path = os.path.join(self.user_data_dir, 'config.json')
-        ids = self.root_widget.ids
-        ids.service.values = DEFAULT_SERVICES
-        self.load_config()
-        return self.root_widget
+        try:
+            if IMPORT_ERROR:
+                raise RuntimeError('Import of zefoy_core failed:\n' + IMPORT_ERROR)
+            self.cfg_path = os.path.join(self.user_data_dir, 'config.json')
+            self.root_widget = Builder.load_string(KV)
+            self.root_widget.ids.service.values = DEFAULT_SERVICES
+            self.load_config()
+            return self.root_widget
+        except Exception:
+            return self.crash_view(traceback.format_exc())
+
+    def crash_view(self, tb):
+        try:
+            with open(os.path.join(self.user_data_dir, 'crash.log'), 'w', encoding='utf-8') as f:
+                f.write(tb)
+        except Exception:
+            pass
+        box = BoxLayout(orientation='vertical', padding=10, spacing=6)
+        box.add_widget(Label(text='Startup error (send a screenshot of this):',
+                             size_hint_y=None, height=40))
+        box.add_widget(TextInput(text=tb, readonly=True, font_size='11sp'))
+        return box
 
     # ---------------------------------------------------------------- config
     def load_config(self):
@@ -170,7 +196,7 @@ class ZefoyApp(App):
         Clock.schedule_once(lambda dt: setattr(ids.scroll, 'scroll_y', 0), 0.05)
 
     # ---------------------------------------------------------------- run / stop
-    def start(self):
+    def start_bot(self):
         if self.running:
             return
         cfg = self.read_form()
@@ -195,7 +221,7 @@ class ZefoyApp(App):
         self.worker.start()
         threading.Thread(target=self.stats_loop, args=(self.bot,), daemon=True).start()
 
-    def stop(self):
+    def stop_bot(self):
         if self.bot:
             self._append('Stopping...')
             self.bot.stop()
