@@ -1,0 +1,3 @@
+# Only needed for the console version (cli.py) in Termux / PC. The APK does not use this file.
+requests
+git+https://github.com/fancy45daddy/Python-Tls-Client.git
